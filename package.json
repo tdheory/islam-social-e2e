@@ -20,6 +20,12 @@
   },
   "homepage": "https://github.com/tdheory/islam-social-e2e#readme",
   "devDependencies": {
-    "@playwright/test": "^1.61.1"
+    "@playwright/test": "^1.61.1",
+    "@types/node": "^26.0.1"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "imapflow": "^1.4.2",
+    "mailparser": "^3.9.11"
   }
 }

@@ -29,9 +29,6 @@ export class RegistrationPage {
 
     await expect(registerBtn.first()).toBeVisible({ timeout: 10000 });
     await registerBtn.first().click();
-
-    // ждём появления формы регистрации
-    await this.page.waitForTimeout(2000);
   }
 
   async register(name: string, email: string, password: string) {
@@ -43,31 +40,39 @@ export class RegistrationPage {
 
     await expect(nameInput).toBeVisible({ timeout: 15000 });
 
-    console.log('FILL: name');
     await nameInput.fill(name);
 
-    console.log('FILL: email');
     await this.page.getByRole('textbox', { name: 'Enter your email' }).fill(email);
 
-    console.log('FILL: password');
     await this.page.getByRole('textbox', { name: 'Enter your password' }).fill(password);
 
-    console.log('FILL: confirm password');
     await this.page.getByRole('textbox', { name: 'Confirm password' }).fill(password);
 
-    console.log('CHECK: user agreement');
     await this.page.getByRole('checkbox', {
       name: 'I accept User agreement',
     }).check();
 
-    console.log('CLICK: next');
     await this.page.getByRole('button', { name: 'Next' }).click();
+  }
 
-    // ждём переход после регистрации шага 1
-    await this.page.waitForTimeout(3000);
+  // 🔥 НОВОЕ: ввод OTP
+  async enterOtp(code: string) {
+    console.log('STEP OTP: entering code');
+
+    const otpInput = this.page.getByRole('textbox', {
+      name: /confirmation code|code/i,
+    });
+
+    await expect(otpInput).toBeVisible({ timeout: 15000 });
+
+    await otpInput.fill(code);
+
+    await this.page.getByRole('button', {
+      name: /next|confirm|verify/i,
+    }).click();
   }
 
   async expectRegistered() {
-    await expect(this.page).not.toHaveURL(/register|signup/i);
+    await expect(this.page).not.toHaveURL(/register|signup|verify/i);
   }
 }

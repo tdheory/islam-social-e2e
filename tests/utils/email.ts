@@ -4,80 +4,98 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const client = new ImapFlow({
+function createClient() {
+  return new ImapFlow({
     host: 'imap.gmail.com',
     port: 993,
     secure: true,
     auth: {
-        user: process.env.GMAIL_USER!,
-        pass: process.env.GMAIL_APP_PASSWORD!,
+      user: process.env.GMAIL_USER!,
+      pass: process.env.GMAIL_APP_PASSWORD!,
     },
-});
-
-export async function getLatestEmail() {
-    await client.connect();
-
-    // открываем INBOX
-    let lock = await client.getMailboxLock('INBOX');
-
-    try {
-        // ищем последние письма
-        const messages = await client.fetch('1:*', {
-            envelope: true,
-            source: true,
-        });
-
-        let latestEmail: any = null;
-
-        for await (let msg of messages) {
-            latestEmail = msg;
-        }
-
-        if (!latestEmail) {
-            throw new Error('Письма не найдены');
-        }
-
-        const parsed = await simpleParser(latestEmail.source);
-
-        console.log('FROM:', parsed.from?.text);
-        console.log('SUBJECT:', parsed.subject);
-        console.log('TEXT:', parsed.text);
-
-        return parsed;
-    } finally {
-        lock.release();
-        await client.logout();
-    }
+    logger: false,
+  });
 }
 
-export function generateTestEmail(tag: string) {
-    const timestamp = Date.now();
-    return `victor.automation+${tag}_${timestamp}@gmail.com`;
+/**
+ * Генерирует уникальный email для каждого прогона теста
+ */
+export function generateTestEmail(tag: string): string {
+  return `islamsocial.qa+${tag}_${Date.now()}@gmail.com`;
 }
 
+/**
+ * 🔥 Ожидает OTP код из письма, отправленного на конкретный уникальный email.
+ */
 export async function waitForOtpFromEmail(
-    timeoutMs = 60000,
-    intervalMs = 5000
-): Promise<string | null> {
+  targetEmail: string,
+  timeoutMs: number = 120000,
+  intervalMs: number = 5000
+): Promise<string> {
+  const start = Date.now();
 
-    const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    console.log(`Checking for NEW OTP sent to: ${targetEmail}...`);
 
-    while (Date.now() - start < timeoutMs) {
-        console.log('Checking email for OTP...');
+    const client = createClient();
+    
+    try {
+      await client.connect();
+      const lock = await client.getMailboxLock('INBOX');
 
-        const email = await getLatestEmail();
-        const text = email.text || '';
+      try {
+        const searchResult = await client.search({ from: 'info@islam.social' });
+        const uids: number[] = searchResult === false ? [] : searchResult;
 
-        const match = text.match(/\b\d{4,8}\b/);
+        if (uids.length > 0) {
+          uids.sort((a, b) => b - a);
+          const recentUids = uids.slice(0, 5);
 
-        if (match) {
-            console.log('OTP FOUND:', match[0]);
-            return match[0];
+          for (const uid of recentUids) {
+            const msg = await client.fetchOne(uid, { source: true });
+            
+            // 🔥 FIX: Явное сужение типа для TypeScript.
+            // Если msg равен false или у него нет source, то пропускаем.
+            if (msg === false || !msg.source) {
+              continue;
+            }
+
+            // Теперь TypeScript на 100% уверен, что msg — это объект, и ошибка исчезнет
+            const parsed = await simpleParser(msg.source);
+            const toAddress = parsed.to?.text || '';
+
+            if (!toAddress.toLowerCase().includes(targetEmail.toLowerCase())) {
+              continue;
+            }
+
+            const text = parsed.text || parsed.html?.toString() || '';
+
+            const match =
+              text.match(/Confirmation code:\s*(\d{6})/i) ||
+              text.match(/code[:\s]+(\d{6})/i) ||
+              text.match(/(?<!\d)(\d{6})(?!\d)/);
+
+            if (match?.[1]) {
+              console.log('====================================');
+              console.log('🔥 SUCCESS: OTP FOUND FOR CURRENT TEST!');
+              console.log(`Email To: ${toAddress}`);
+              console.log(`Code: ${match[1]}`);
+              console.log('====================================');
+              return match[1];
+            }
+          }
         }
-
-        console.log('OTP not found yet, waiting...');
-        await new Promise(res => setTimeout(res, intervalMs));
+      } finally {
+        lock.release();
+      }
+    } catch (err) {
+      console.error('Ошибка при обращении к IMAP (будет повторная попытка):', err);
+    } finally {
+      await client.logout().catch(() => {});
     }
 
-    throw new Error('OTP not received within timeout');
+    await new Promise(r => setTimeout(r, intervalMs));
+  }
+
+  throw new Error(`OTP for ${targetEmail} not received within timeout`);
 }

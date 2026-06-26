@@ -1,40 +1,57 @@
-import { test } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { RegistrationPage } from '../pages/registration.page';
+import { LoginPage } from '../pages/login.page';
 import { generateTestEmail, waitForOtpFromEmail } from './utils/email';
 
-test('user can register successfully', async ({ page }) => {
+test('user can register, logout and login again successfully', async ({ page }) => {
   const registration = new RegistrationPage(page);
+  const login = new LoginPage(page);
 
-  const email = generateTestEmail('register1');
+  const email = generateTestEmail('register');
+  const password = `Password${Date.now()}!`;
+  const name = `TestUser_${Date.now()}`;
 
-  const password = `Password${Date.now()}`;
-  const name = `TestUser${Date.now()}`;
-
-  console.log('STEP 1: open');
+  console.log('STEP 1-4: Open, skip intro, and fill registration form');
   await registration.open();
-
-  console.log('STEP 2: skip intro');
   await registration.skipIntroIfVisible();
-
-  console.log('STEP 3: open registration');
   await registration.openRegistration();
-
-  console.log('STEP 4: fill form');
   await registration.register(name, email, password);
 
-  console.log('STEP 5: wait OTP (Gmail)');
-  const otp = await waitForOtpFromEmail(120000, 5000);
+  console.log(`STEP 5: Wait for OTP in email for ${email}`);
+  // 🔥 Передаем конкретный сгенерированный email!
+  const otp = await waitForOtpFromEmail(email, 120000, 5000); 
 
-  // 🔥 защита от null (обязательно)
-  if (!otp) {
-    throw new Error('OTP was not received from Gmail');
-  }
-
-  console.log('OTP:', otp);
-
-  console.log('STEP 6: enter OTP');
+  console.log('STEP 6: Enter OTP code');
   await registration.enterOtp(otp);
 
-  console.log('STEP 7: verify success');
-  await registration.expectRegistered();
+  console.log('STEP 7: Verify registration success (UI-based)');
+  // Ждем появления элемента, подтверждающего успешную авторизацию
+  await expect(page.getByText(/welcome|dashboard|profile|success|feed|home/i).first())
+    .toBeVisible({ timeout: 15000 });
+
+  console.log('STEP 8: Logout');
+  // Открываем меню аккаунта
+  const accountBtn = page.getByRole('button', { name: /account|profile|menu/i }).first();
+  await accountBtn.waitFor({ state: 'visible' });
+  await accountBtn.click();
+
+  // Нажимаем выход
+  const logoutBtn = page.getByRole('button', { name: /sign out|log out|logout/i }).first();
+  await logoutBtn.waitFor({ state: 'visible' });
+  await logoutBtn.click();
+
+  // Убеждаемся, что вышли (появилась кнопка логина)
+  await expect(page.getByRole('link', { name: /Log\s?in|Login|Sign in/i }).first())
+    .toBeVisible({ timeout: 10000 });
+
+  console.log('STEP 9: Login with new user');
+  await login.open();
+  await login.skipIntroIfVisible();
+  await login.openLogin();
+  await login.login(email, password);
+
+  console.log('STEP 10: Verify login success');
+  await expect(page.getByText(/dashboard|profile|feed|home/i).first())
+    .toBeVisible({ timeout: 15000 });
+  await login.expectLoggedIn();
 });

@@ -10,27 +10,20 @@ export class LoginPage extends BasePage {
     await super.open('/');
   }
 
-  async skipIntroIfVisible() {
-    const skip = this.page.getByRole('button', { name: /skip/i });
-    if (await skip.count() > 0) {
-      try {
-        await skip.first().click({ timeout: 3000 });
-      } catch {}
-    }
-  }
-
   async openLogin() {
-    await this.page.getByRole('link', { name: /Log\s?in|Login|Sign in/i }).first().click();
+    await this.page.getByRole('link', { name: 'Login' }).first().click();
   }
 
   async login(email: string, password: string) {
-    // В формах логина input типа password часто не виден по role='textbox', используем locator
-    await this.page.locator('input[type="email"], input[name*="email"]').first().fill(email);
-    await this.page.locator('input[type="password"], input[name*="password"]').first().fill(password);
-    await this.page.getByRole('button', { name: /Sign in|Log in|Login/i }).first().click();
+    // Используем точные имена полей из твоего codegen
+    await this.page.getByRole('textbox', { name: 'Login' }).first().fill(email);
+    await this.page.getByRole('textbox', { name: 'Password' }).first().fill(password);
+    await this.page.getByRole('button', { name: 'Sign in' }).first().click();
   }
 
   async expectLoggedIn() {
     await expect(this.page).not.toHaveURL(/login/i);
+    const userDashboard = this.page.getByText(/dashboard|profile|feed|home|welcome/i).first();
+    await expect(userDashboard).toBeVisible({ timeout: 15000 });
   }
 }

@@ -1,52 +1,33 @@
 import { expect, Page } from '@playwright/test';
+import { BasePage } from './base.page';
 
-export class RegistrationPage {
-  constructor(private readonly page: Page) {}
-
-  async open() {
-    await this.page.goto('/');
-    await this.page.waitForLoadState('domcontentloaded');
+export class RegistrationPage extends BasePage {
+  constructor(page: Page) {
+    super(page);
   }
 
-  async skipIntroIfVisible() {
-    const skip = this.page.getByRole('button', { name: /skip/i });
-    if (await skip.count() > 0) {
-      try {
-        await skip.first().click({ timeout: 3000 });
-      } catch {
-        // Игнорируем, если кнопка пропала
-      }
-    }
+  async open() {
+    await super.open('/');
   }
 
   async openRegistration() {
-    const registerBtn = this.page.getByRole('link', { name: /sign up|register|create account/i });
-    await expect(registerBtn.first()).toBeVisible({ timeout: 10000 });
-    await registerBtn.first().click();
+    const registerBtn = this.page.getByRole('link', { name: /register|sign up/i }).first();
+    await expect(registerBtn).toBeVisible({ timeout: 10000 });
+    await registerBtn.click();
   }
 
   async register(name: string, email: string, password: string) {
-    const nameInput = this.page.getByRole('textbox', { name: /name/i });
-    await expect(nameInput.first()).toBeVisible({ timeout: 15000 });
+    await this.page.getByRole('textbox', { name: /enter your name/i }).first().fill(name);
+    await this.page.getByRole('textbox', { name: /enter your email/i }).first().fill(email);
+    await this.page.getByRole('textbox', { name: /enter your password/i }).first().fill(password);
+    await this.page.getByRole('textbox', { name: /confirm password/i }).first().fill(password);
 
-    await nameInput.first().fill(name);
-    await this.page.getByRole('textbox', { name: /email/i }).first().fill(email);
-    
-    // Заполнение пароля (используем testid или label для надежности, если name не срабатывает)
-    const passwordInputs = this.page.getByRole('textbox', { name: /password/i });
-    await passwordInputs.nth(0).fill(password);
-    
-    // Если есть поле Confirm password
-    if (await passwordInputs.nth(1).isVisible()) {
-        await passwordInputs.nth(1).fill(password);
-    }
-
-    const agreementCheckbox = this.page.getByRole('checkbox', { name: /agreement|terms/i });
+    const agreementCheckbox = this.page.getByRole('checkbox', { name: /accept user agreement|agreement/i }).first();
     if (await agreementCheckbox.isVisible()) {
         await agreementCheckbox.check();
     }
 
-    await this.page.getByRole('button', { name: /next|continue/i }).first().click();
+    await this.page.getByRole('button', { name: /next/i }).first().click();
   }
 
   async enterOtp(code: string) {

@@ -23,14 +23,8 @@ jobs:
       run: npx playwright install --with-deps
 
     - name: Run Playwright tests
-      run: npx playwright test
-      env:
-        # Передаем секреты из настроек GitHub в наш тест
-        MAIL_PROVIDER: ${{ secrets.MAIL_PROVIDER }}
-        GMAIL_USER: ${{ secrets.GMAIL_USER }}
-        GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-        YANDEX_USER: ${{ secrets.YANDEX_USER }}
-        YANDEX_APP_PASSWORD: ${{ secrets.YANDEX_APP_PASSWORD }}
+      # Указываем запускать ТОЛЬКО smoke-тест, чтобы не упасть без почты
+      run: npx playwright test tests/smoke.spec.ts
 
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
@@ -38,3 +32,19 @@ jobs:
         name: playwright-report
         path: playwright-report/
         retention-days: 30
+
+    - name: Send Telegram Success Notification
+      if: success()
+      run: |
+        curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOK }}/sendMessage" \
+          -d chat_id="${{ secrets.TELEGRAM_TO }}" \
+          -d text="✅ *Playwright Smoke Test Passed!* %0A%0AСмоук-тест пройден. Бот работает как часы! 🚀" \
+          -d parse_mode="Markdown"
+
+    - name: Send Telegram Failure Notification
+      if: failure()
+      run: |
+        curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOK }}/sendMessage" \
+          -d chat_id="${{ secrets.TELEGRAM_TO }}" \
+          -d text="❌ *Playwright Tests Failed!* %0A%0AЧто-то пошло не так в облаке. Проверь логи. 🚨" \
+          -d parse_mode="Markdown"

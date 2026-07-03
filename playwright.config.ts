@@ -11,6 +11,8 @@ export default defineConfig({
   retries: 0,
   timeout: 60000,
 
+  reporter: process.env.CI ? 'dot' : 'html',
+  
   use: {
     baseURL: 'https://islam.social',
     headless: false,

@@ -4,23 +4,47 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-function createClient() {
+/**
+ * Динамически создает клиент IMAP в зависимости от домена почты
+ */
+function createClient(targetEmail: string) {
+  const isYandex = targetEmail.toLowerCase().includes('yandex');
+
   return new ImapFlow({
-    host: 'imap.gmail.com',
+    host: isYandex ? 'imap.yandex.ru' : 'imap.gmail.com',
     port: 993,
     secure: true,
     auth: {
-      user: process.env.GMAIL_USER!,
-      pass: process.env.GMAIL_APP_PASSWORD!,
+      user: isYandex ? process.env.YANDEX_USER! : process.env.GMAIL_USER!,
+      pass: isYandex ? process.env.YANDEX_APP_PASSWORD! : process.env.GMAIL_APP_PASSWORD!,
     },
     logger: false,
   });
 }
 
-export function generateTestEmail(tag: string): string {
-  return `islamsocial.qa+${tag}_${Date.now()}@gmail.com`;
+/**
+ * ЕДИНЫЙ ГЕНЕРАТОР ПОЧТЫ
+ * Автоматически создаёт Gmail или Yandex адрес на основе переменной MAIL_PROVIDER в .env
+ */
+export function generateEmail(tag: string): string {
+  const provider = (process.env.MAIL_PROVIDER || 'gmail').toLowerCase();
+  const timestamp = Date.now();
+
+  if (provider === 'yandex') {
+    const base = process.env.YANDEX_USER?.split('@')[0] || 'username';
+    return `${base}+${tag}_${timestamp}@yandex.ru`;
+  }
+
+  // По умолчанию генерируем Gmail
+  const base = process.env.GMAIL_USER?.split('@')[0] || 'islamsocial.qa';
+  // На случай, если в GMAIL_USER уже указан тег с плюсом, отсекаем его для чистоты
+  const cleanBase = base.includes('+') ? base.split('+')[0] : base;
+  return `${cleanBase}+${tag}_${timestamp}@gmail.com`;
 }
 
+/**
+ * Универсальная функция ожидания OTP.
+ */
 export async function waitForOtpFromEmail(
   targetEmail: string,
   timeoutMs: number = 120000,
@@ -31,7 +55,7 @@ export async function waitForOtpFromEmail(
   while (Date.now() - start < timeoutMs) {
     console.log(`[IMAP] Поиск OTP для адреса: ${targetEmail}...`);
 
-    const client = createClient();
+    const client = createClient(targetEmail);
     
     try {
       await client.connect();
@@ -42,7 +66,6 @@ export async function waitForOtpFromEmail(
         const uids: number[] = searchResult === false ? [] : searchResult;
 
         if (uids.length > 0) {
-          // Сортируем от новых к старым и берем 10 последних для надежности
           uids.sort((a, b) => b - a);
           const recentUids = uids.slice(0, 10);
 
@@ -57,11 +80,9 @@ export async function waitForOtpFromEmail(
             const toAddress = parsed.to?.text || '';
             const text = parsed.text || parsed.html?.toString() || '';
 
-            // Мягкая проверка на вхождение целевого email
             if (toAddress.toLowerCase().includes(targetEmail.toLowerCase())) {
               console.log(`[IMAP] Найдено подходящее письмо (UID: ${uid}). Анализируем текст...`);
 
-              // Все твои оригинальные регулярные выражения
               const match =
                 text.match(/Confirmation code:\s*(\d{6})/i) ||
                 text.match(/code[:\s]*(\d{6})/i) ||

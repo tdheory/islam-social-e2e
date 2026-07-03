@@ -19,10 +19,8 @@ export default defineConfig({
     video: 'retain-on-failure',
     trace: 'on-first-retry',
     
-    // 🔥 ФИКС ТУТ: Заставляем браузер думать, что мы в англоязычной среде
     locale: 'en-US', 
     
-    // 🔥 И ТУТ: Передаем флаг в Chromium, который намертво отрубает функцию перевода
     launchOptions: {
       args: ['--disable-features=Translate']
     },

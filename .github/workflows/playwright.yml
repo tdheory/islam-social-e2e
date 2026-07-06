@@ -5,7 +5,6 @@ on:
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
-    # Настраиваем прием параметров из бота
     inputs:
       test_type:
         description: 'Какой тест запускать'
@@ -22,15 +21,30 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: lts/*
+        cache: 'npm' # 🔥 Кэшируем библиотеки node_modules
 
     - name: Install dependencies
       run: npm ci
 
+    # 🔥 Магия: проверяем, есть ли уже скачанные браузеры с прошлого раза
+    - name: Cache Playwright Browsers
+      id: cache-playwright
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+    # Скачиваем браузеры ТОЛЬКО если кэш пустой (например, изменилась версия Playwright)
     - name: Install Playwright Browsers
+      if: steps.cache-playwright.outputs.cache-hit != 'true'
       run: npx playwright install --with-deps
 
+    # Если кэш сработал, ставим только системные окружения для браузеров (это быстро)
+    - name: Install Playwright Operating System Dependencies
+      if: steps.cache-playwright.outputs.cache-hit == 'true'
+      run: npx playwright install-deps
+
     - name: Run Playwright tests
-      # Скрипт проверяет, что прислал бот, и запускает нужный файл
       run: |
         if [ "${{ github.event.inputs.test_type }}" = "login" ]; then
           npx playwright test tests/login.spec.ts
@@ -47,7 +61,6 @@ jobs:
         path: playwright-report/
         retention-days: 30
 
-    # 🟢 ЕСЛИ ВСЁ ПРОШЛО УСПЕШНО:
     - name: Send Telegram Success Notification
       if: success()
       run: |
@@ -57,7 +70,6 @@ jobs:
           -d text="$TEXT" \
           -d parse_mode="Markdown"
 
-    # 🔴 ЕСЛИ ТЕСТЫ УПАЛИ:
     - name: Send Telegram Failure Notification
       if: failure()
       run: |

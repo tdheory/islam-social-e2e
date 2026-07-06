@@ -6,10 +6,6 @@ export class RegistrationPage extends BasePage {
     super(page);
   }
 
-  async open() {
-    await super.open('/');
-  }
-
   async openRegistration() {
     const registerBtn = this.page.getByRole('link', { name: /register|sign up/i }).first();
     await expect(registerBtn).toBeVisible({ timeout: 10000 });
@@ -27,7 +23,7 @@ export class RegistrationPage extends BasePage {
         await agreementCheckbox.check();
     }
 
-    await this.page.getByRole('button', { name: /next/i }).first().click();
+    await this.page.getByRole('button', { name: /next|register|sign up/i }).first().click();
   }
 
   async enterOtp(code: string) {
@@ -35,9 +31,5 @@ export class RegistrationPage extends BasePage {
     await expect(otpInput).toBeVisible({ timeout: 15000 });
     await otpInput.fill(code);
     await this.page.getByRole('button', { name: /next|confirm|verify/i }).first().click();
-  }
-
-  async expectRegistered() {
-    await expect(this.page).not.toHaveURL(/register|signup|verify/i);
   }
 }

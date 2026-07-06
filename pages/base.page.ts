@@ -1,35 +1,29 @@
 import { Page } from '@playwright/test';
 
 export class BasePage {
-  constructor(protected readonly page: Page) {}
+  readonly page: Page;
 
+  constructor(page: Page) {
+    this.page = page;
+  }
+
+  // Универсальный метод открытия страниц
   async open(path: string = '/') {
     await this.page.goto(path);
     await this.page.waitForLoadState('domcontentloaded');
   }
 
+  // Метод для пропуска приветственных экранов или куки-баннеров
   async skipIntroIfVisible() {
-    await this.page.waitForTimeout(1000);
+    // Ищем кнопку закрытия/пропуска (замени локатор на тот, что реально на сайте)
+    const skipBtn = this.page.getByRole('button', { name: /skip|close|понятно/i }).first();
     
-    // Пытаемся нажать на кнопку Skip из codegen
-    const skipButton = this.page.getByRole('button', { name: 'Skip' });
+    // Проверяем, есть ли она на экране (ждем максимум 3 секунды, чтобы не тормозить тест)
+    const isVisible = await skipBtn.isVisible({ timeout: 3000 }).catch(() => false);
     
-    if (await skipButton.isVisible()) {
-      await skipButton.click();
-      await this.page.waitForTimeout(500);
-      return;
-    }
-
-    // Если кнопки нет, но оверлей завис — удаляем его принудительно
-    const overlay = this.page.locator('.tutorial-overlay');
-    if (await overlay.isVisible()) {
-      await this.page.evaluate(() => {
-        const el = document.querySelector('.tutorial-overlay');
-        if (el) el.remove();
-        document.body.style.overflow = 'auto';
-        document.documentElement.style.overflow = 'auto';
-      });
-      await this.page.waitForTimeout(500);
+    if (isVisible) {
+      console.log('Найден оверлей, закрываем...');
+      await skipBtn.click();
     }
   }
 }

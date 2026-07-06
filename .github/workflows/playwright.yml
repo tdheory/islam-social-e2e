@@ -23,7 +23,6 @@ jobs:
       run: npx playwright install --with-deps
 
     - name: Run Playwright tests
-      # Указываем запускать ТОЛЬКО smoke-тест, чтобы не упасть без почты
       run: npx playwright test tests/smoke.spec.ts
 
     - uses: actions/upload-artifact@v4
@@ -33,18 +32,22 @@ jobs:
         path: playwright-report/
         retention-days: 30
 
+    # 🟢 ЕСЛИ ВСЁ ПРОШЛО УСПЕШНО:
     - name: Send Telegram Success Notification
       if: success()
       run: |
+        TEXT="✅ *Playwright Tests PASSED!*%0A%0A👤 *Автор:* ${{ github.actor }}%0A🌿 *Ветка:* ${{ github.ref_name }}%0A📝 *Коммит:* ${{ github.event.head_commit.message }}%0A%0A🚀 Проект стабилен!"
         curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOK }}/sendMessage" \
           -d chat_id="${{ secrets.TELEGRAM_TO }}" \
-          -d text="✅ *Playwright Smoke Test Passed!* %0A%0AСмоук-тест пройден. Бот работает как часы! 🚀" \
+          -d text="$TEXT" \
           -d parse_mode="Markdown"
 
+    # 🔴 ЕСЛИ ТЕСТЫ УПАЛИ:
     - name: Send Telegram Failure Notification
       if: failure()
       run: |
+        TEXT="❌ *Playwright Tests FAILED!*%0A%0A👤 *Поломал:* ${{ github.actor }}%0A🌿 *Ветка:* ${{ github.ref_name }}%0A📝 *Коммит:* ${{ github.event.head_commit.message }}%0A%0A🔍 *Логи и отчет:* https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOK }}/sendMessage" \
           -d chat_id="${{ secrets.TELEGRAM_TO }}" \
-          -d text="❌ *Playwright Tests Failed!* %0A%0AЧто-то пошло не так в облаке. Проверь логи. 🚨" \
+          -d text="$TEXT" \
           -d parse_mode="Markdown"

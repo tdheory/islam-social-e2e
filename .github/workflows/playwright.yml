@@ -5,6 +5,12 @@ on:
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
+    # Настраиваем прием параметров из бота
+    inputs:
+      test_type:
+        description: 'Какой тест запускать'
+        required: true
+        default: 'smoke'
 
 jobs:
   test:
@@ -24,7 +30,15 @@ jobs:
       run: npx playwright install --with-deps
 
     - name: Run Playwright tests
-      run: npx playwright test tests/smoke.spec.ts
+      # Скрипт проверяет, что прислал бот, и запускает нужный файл
+      run: |
+        if [ "${{ github.event.inputs.test_type }}" = "login" ]; then
+          npx playwright test tests/login.spec.ts
+        elif [ "${{ github.event.inputs.test_type }}" = "registration" ]; then
+          npx playwright test tests/registration.spec.ts
+        else
+          npx playwright test tests/smoke.spec.ts
+        fi
 
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
@@ -37,7 +51,7 @@ jobs:
     - name: Send Telegram Success Notification
       if: success()
       run: |
-        TEXT="✅ *Playwright Tests PASSED!*%0A%0A👤 *Автор:* ${{ github.actor }}%0A🌿 *Ветка:* ${{ github.ref_name }}%0A📝 *Коммит:* ${{ github.event.head_commit.message }}%0A%0A🚀 Проект стабилен!"
+        TEXT="✅ *Playwright Tests PASSED!*%0A%0A🎯 *Тип проверки:* ${{ github.event.inputs.test_type || 'Авто-пуш' }}%0A👤 *Запустил:* ${{ github.actor }}%0A🌿 *Ветка:* ${{ github.ref_name }}%0A%0A🚀 Проект работает стабильно!"
         curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOK }}/sendMessage" \
           -d chat_id="${{ secrets.TELEGRAM_TO }}" \
           -d text="$TEXT" \
@@ -47,7 +61,7 @@ jobs:
     - name: Send Telegram Failure Notification
       if: failure()
       run: |
-        TEXT="❌ *Playwright Tests FAILED!*%0A%0A👤 *Поломал:* ${{ github.actor }}%0A🌿 *Ветка:* ${{ github.ref_name }}%0A📝 *Коммит:* ${{ github.event.head_commit.message }}%0A%0A🔍 *Логи и отчет:* https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        TEXT="❌ *Playwright Tests FAILED!*%0A%0A🎯 *Упала проверка:* ${{ github.event.inputs.test_type || 'Авто-пуш' }}%0A👤 *Кто сломал:* ${{ github.actor }}%0A🔍 *Логи и отчет:* https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOK }}/sendMessage" \
           -d chat_id="${{ secrets.TELEGRAM_TO }}" \
           -d text="$TEXT" \

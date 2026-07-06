@@ -26,6 +26,7 @@
   "dependencies": {
     "dotenv": "^17.4.2",
     "imapflow": "^1.4.2",
-    "mailparser": "^3.9.11"
+    "mailparser": "^3.9.11",
+    "node-telegram-bot-api": "^1.1.2"
   }
 }

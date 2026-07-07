@@ -19,21 +19,17 @@ export default defineConfig({
   // В облаке используем лаконичный отчет 'dot', локально — красивый 'html'
   reporter: [['html', { open: 'never' }]],
   
-  use: {
+use: {
     baseURL: 'https://islam.social',
-    // В облаке запускаем безголовый режим (headless), дома — с открытием браузера
+    ignoreHTTPSErrors: true, // 🔥 ДОБАВЬ ЭТУ СТРОЧКУ СЮДА
     headless: process.env.CI ? true : false,
     viewport: { width: 1280, height: 720 },
-    
-    // Делаем скриншот только если тест упал
     screenshot: 'only-on-failure',
-    // Записываем видео только при падениях
     video: 'retain-on-failure',
     trace: 'on-first-retry',
-    
     locale: 'en-US', 
     launchOptions: {
-      args: ['--disable-features=Translate'] // Отключаем гугл-переводчик, который может ломать верстку
+      args: ['--disable-features=Translate']
     },
   },
   

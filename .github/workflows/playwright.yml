@@ -53,7 +53,7 @@ jobs:
       env:
         MAIL_PROVIDER: 'gmail'
         GMAIL_USER: 'islam.social.qa@gmail.com'
-        GMAIL_APP_PASSWORD: iwfnzrkscdtkbqqp
+        GMAIL_APP_PASSWORD: 'iwfnzrkscdtkbqqp'
         YANDEX_USER: 'vi9ong@yandex.com'
         YANDEX_APP_PASSWORD: 'gtpwxhpfvxrrpnni'
       run: |

@@ -5,28 +5,31 @@ on:
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
+    # Возможность запускать тесты вручную из интерфейса GitHub
     inputs:
       test_type:
-        description: 'Какой тест запускать'
+        description: 'Какой тест запускать (smoke, login, registration, all)'
         required: true
-        default: 'smoke'
+        default: 'all'
 
 jobs:
   test:
-    timeout-minutes: 60
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-    - uses: actions/setup-node@v4
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
       with:
         node-version: lts/*
-        cache: 'npm' # 🔥 Кэшируем библиотеки node_modules
+        cache: 'npm' # Умное кэширование зависимостей node_modules
 
     - name: Install dependencies
       run: npm ci
 
-    # 🔥 Магия: проверяем, есть ли уже скачанные браузеры с прошлого раза
+    # Проверяем, есть ли сохраненные браузеры с прошлых запусков
     - name: Cache Playwright Browsers
       id: cache-playwright
       uses: actions/cache@v4
@@ -34,47 +37,34 @@ jobs:
         path: ~/.cache/ms-playwright
         key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
-    # Скачиваем браузеры ТОЛЬКО если кэш пустой (например, изменилась версия Playwright)
+    # Скачиваем браузеры только если они обновились или кэш пустой
     - name: Install Playwright Browsers
       if: steps.cache-playwright.outputs.cache-hit != 'true'
       run: npx playwright install --with-deps
 
-    # Если кэш сработал, ставим только системные окружения для браузеров (это быстро)
-    - name: Install Playwright Operating System Dependencies
+    # Если браузеры в кэше, быстро доставляем системные библиотеки Linux
+    - name: Install Playwright OS Dependencies
       if: steps.cache-playwright.outputs.cache-hit == 'true'
       run: npx playwright install-deps
 
+    # Гибкий запуск тестов в зависимости от выбора
     - name: Run Playwright tests
       run: |
         if [ "${{ github.event.inputs.test_type }}" = "login" ]; then
           npx playwright test tests/login.spec.ts
         elif [ "${{ github.event.inputs.test_type }}" = "registration" ]; then
           npx playwright test tests/registration.spec.ts
-        else
+        elif [ "${{ github.event.inputs.test_type }}" = "smoke" ]; then
           npx playwright test tests/smoke.spec.ts
+        else
+          npx playwright test # По умолчанию запускает вообще ВСЕ тесты параллельно
         fi
 
-    - uses: actions/upload-artifact@v4
+    # Всегда сохраняем отчет (даже если тесты упали), чтобы посмотреть скриншоты
+    - name: Upload Playwright Report
       if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v4
       with:
         name: playwright-report
         path: playwright-report/
-        retention-days: 30
-
-    - name: Send Telegram Success Notification
-      if: success()
-      run: |
-        TEXT="✅ *Playwright Tests PASSED!*%0A%0A🎯 *Тип проверки:* ${{ github.event.inputs.test_type || 'Авто-пуш' }}%0A👤 *Запустил:* ${{ github.actor }}%0A🌿 *Ветка:* ${{ github.ref_name }}%0A%0A🚀 Проект работает стабильно!"
-        curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOK }}/sendMessage" \
-          -d chat_id="${{ secrets.TELEGRAM_TO }}" \
-          -d text="$TEXT" \
-          -d parse_mode="Markdown"
-
-    - name: Send Telegram Failure Notification
-      if: failure()
-      run: |
-        TEXT="❌ *Playwright Tests FAILED!*%0A%0A🎯 *Упала проверка:* ${{ github.event.inputs.test_type || 'Авто-пуш' }}%0A👤 *Кто сломал:* ${{ github.actor }}%0A🔍 *Логи и отчет:* https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOK }}/sendMessage" \
-          -d chat_id="${{ secrets.TELEGRAM_TO }}" \
-          -d text="$TEXT" \
-          -d parse_mode="Markdown"
+        retention-days: 14

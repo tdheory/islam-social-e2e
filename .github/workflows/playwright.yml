@@ -49,6 +49,13 @@ jobs:
 
     # Гибкий запуск тестов в зависимости от выбора
     - name: Run Playwright tests
+      # 🔥 Передаем настройки из твоего .env в облачный сервер GitHub
+      env:
+        MAIL_PROVIDER: 'gmail'
+        GMAIL_USER: 'islam.social.qa@gmail.com'
+        GMAIL_APP_PASSWORD: 'сюда_твой_пароль_приложений_от_гугла' # Вставь свой реальный пароль приложений
+        YANDEX_USER: 'vi9ong@yandex.com'
+        YANDEX_APP_PASSWORD: 'сюда_пароль_если_переключишься_на_яндекс'
       run: |
         if [ "${{ github.event.inputs.test_type }}" = "login" ]; then
           npx playwright test tests/login.spec.ts

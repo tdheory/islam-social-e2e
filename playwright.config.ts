@@ -17,7 +17,7 @@ export default defineConfig({
   timeout: 60000,
 
   // В облаке используем лаконичный отчет 'dot', локально — красивый 'html'
-  reporter: process.env.CI ? 'dot' : 'html',
+  reporter: [['html', { open: 'never' }]],
   
   use: {
     baseURL: 'https://islam.social',

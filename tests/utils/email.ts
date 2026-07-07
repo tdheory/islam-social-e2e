@@ -4,9 +4,8 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-/**
- * Динамически создает клиент IMAP в зависимости от домена почты
- */
+export type MailProvider = 'gmail' | 'yandex';
+
 function createClient(targetEmail: string) {
   const isYandex = targetEmail.toLowerCase().includes('yandex');
 
@@ -23,31 +22,24 @@ function createClient(targetEmail: string) {
 }
 
 /**
- * ЕДИНЫЙ ГЕНЕРАТОР ПОЧТЫ
- * Автоматически создаёт Gmail или Yandex адрес на основе переменной MAIL_PROVIDER в .env
+ * Генерирует email в зависимости от переданного провайдера
  */
-export function generateEmail(tag: string): string {
-  const provider = (process.env.MAIL_PROVIDER || 'gmail').toLowerCase();
+export function generateEmail(tag: string, provider: MailProvider): string {
   const timestamp = Date.now();
 
   if (provider === 'yandex') {
-    const base = process.env.YANDEX_USER?.split('@')[0] || 'username';
-    return `${base}+${tag}_${timestamp}@yandex.ru`;
+    const base = process.env.YANDEX_USER?.split('@')[0] || 'vi9ong';
+    return `${base}+${tag}_${timestamp}@yandex.com`;
   }
 
-  // По умолчанию генерируем Gmail
-  const base = process.env.GMAIL_USER?.split('@')[0] || 'islamsocial.qa';
-  // На случай, если в GMAIL_USER уже указан тег с плюсом, отсекаем его для чистоты
+  const base = process.env.GMAIL_USER?.split('@')[0] || 'islam.social.qa';
   const cleanBase = base.includes('+') ? base.split('+')[0] : base;
   return `${cleanBase}+${tag}_${timestamp}@gmail.com`;
 }
 
-/**
- * Универсальная функция ожидания OTP.
- */
 export async function waitForOtpFromEmail(
   targetEmail: string,
-  timeoutMs: number = 120000,
+  timeoutMs: number = 100000,
   intervalMs: number = 5000
 ): Promise<string> {
   const start = Date.now();
@@ -71,10 +63,7 @@ export async function waitForOtpFromEmail(
 
           for (const uid of recentUids) {
             const msg = await client.fetchOne(uid, { source: true });
-            
-            if (msg === false || !msg.source) {
-              continue;
-            }
+            if (msg === false || !msg.source) continue;
 
             const parsed = await simpleParser(msg.source);
             const toAddress = parsed.to?.text || '';
@@ -92,8 +81,6 @@ export async function waitForOtpFromEmail(
               if (match?.[1]) {
                 console.log(`[IMAP] 🔥 УСПЕХ: OTP код успешно извлечен: ${match[1]}`);
                 return match[1];
-              } else {
-                console.log(`[IMAP] Предупреждение: письмо найдено, но код не распознан.`);
               }
             }
           }

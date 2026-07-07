@@ -5,7 +5,6 @@ on:
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
-    # Возможность запускать тесты вручную из интерфейса GitHub
     inputs:
       test_type:
         description: 'Какой тест запускать (smoke, login, registration, all)'
@@ -24,12 +23,11 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: lts/*
-        cache: 'npm' # Умное кэширование зависимостей node_modules
+        cache: 'npm'
 
     - name: Install dependencies
       run: npm ci
 
-    # Проверяем, есть ли сохраненные браузеры с прошлых запусков
     - name: Cache Playwright Browsers
       id: cache-playwright
       uses: actions/cache@v4
@@ -37,21 +35,16 @@ jobs:
         path: ~/.cache/ms-playwright
         key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
-    # Скачиваем браузеры только если они обновились или кэш пустой
     - name: Install Playwright Browsers
       if: steps.cache-playwright.outputs.cache-hit != 'true'
       run: npx playwright install --with-deps
 
-    # Если браузеры в кэше, быстро доставляем системные библиотеки Linux
     - name: Install Playwright OS Dependencies
       if: steps.cache-playwright.outputs.cache-hit == 'true'
       run: npx playwright install-deps
 
-    # Гибкий запуск тестов в зависимости от выбора
     - name: Run Playwright tests
-      # 🔥 Передаем настройки из твоего .env в облачный сервер GitHub
       env:
-        MAIL_PROVIDER: 'gmail'
         GMAIL_USER: 'islam.social.qa@gmail.com'
         GMAIL_APP_PASSWORD: 'iwfnzrkscdtkbqqp'
         YANDEX_USER: 'vi9ong@yandex.com'
@@ -64,10 +57,9 @@ jobs:
         elif [ "${{ github.event.inputs.test_type }}" = "smoke" ]; then
           npx playwright test tests/smoke.spec.ts
         else
-          npx playwright test # По умолчанию запускает вообще ВСЕ тесты параллельно
+          npx playwright test
         fi
 
-    # Всегда сохраняем отчет (даже если тесты упали), чтобы посмотреть скриншоты
     - name: Upload Playwright Report
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v4

@@ -17,8 +17,11 @@ export class LoginPage extends BasePage {
   }
 
   async expectLoggedIn() {
-    await expect(this.page).not.toHaveURL(/login/i, { timeout: 10000 });
-    const userDashboard = this.page.getByText(/dashboard|profile|feed|home|welcome/i).first();
-    await expect(userDashboard).toBeVisible({ timeout: 15000 });
+    // Проверяем, что ушли со страницы логина
+    await expect(this.page).not.toHaveURL(/login|register/i, { timeout: 15000 });
+    
+    // Ждем появления кнопки меню или аккаунта (более надежный элемент, чем просто текст)
+    const accountMenuBtn = this.page.getByRole('button', { name: /account|profile|menu/i }).first();
+    await expect(accountMenuBtn).toBeVisible({ timeout: 15000 });
   }
 }

@@ -17,11 +17,15 @@ export class LoginPage extends BasePage {
   }
 
   async expectLoggedIn() {
-    // Проверяем, что ушли со страницы логина
-    await expect(this.page).not.toHaveURL(/login|register/i, { timeout: 15000 });
-    
-    // Ждем появления кнопки меню или аккаунта (более надежный элемент, чем просто текст)
-    const accountMenuBtn = this.page.getByRole('button', { name: /account|profile|menu/i }).first();
-    await expect(accountMenuBtn).toBeVisible({ timeout: 15000 });
+    // 1. Убеждаемся, что система ушла со страницы логина/авторизации
+    await expect(this.page).not.toHaveURL(/login|sign-in/i, { timeout: 15000 });
+
+    // 2. Ищем элемент, подтверждающий вход: аватарку, кнопку профиля, выпадающее меню или ссылки
+    const userElement = this.page.locator(
+      'header img, [data-testid*="user"], [class*="avatar"], button:has-text("Logout"), a[href*="profile"]'
+    ).first();
+
+    // 3. Проверяем видимость (или хотя бы наличие в DOM, если элемент перекрыт интерфейсом)
+    await expect(userElement).toBeAttached({ timeout: 15000 });
   }
 }

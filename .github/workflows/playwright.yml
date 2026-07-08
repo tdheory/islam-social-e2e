@@ -44,6 +44,7 @@ jobs:
       run: npx playwright install-deps
 
     - name: Run Playwright tests
+      # Здесь остаются только данные для работы с почтой во время регистрации
       env:
         GMAIL_USER: 'islam.social.qa@gmail.com'
         GMAIL_APP_PASSWORD: 'iwfnzrkscdtkbqqp'

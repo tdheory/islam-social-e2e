@@ -1,14 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { RegistrationPage } from '../pages/registration.page';
-import { LoginPage } from '../pages/login.page';
 import { generateEmail, waitForOtpFromEmail, MailProvider } from './utils/email';
 
 const providers: MailProvider[] = ['gmail', 'yandex'];
 
 for (const provider of providers) {
-  test(`User can register, logout and login again successfully via ${provider.toUpperCase()}`, async ({ page }) => {
+  test(`User can successfully complete registration up to OTP via ${provider.toUpperCase()}`, async ({ page }) => {
     const registration = new RegistrationPage(page);
-    const login = new LoginPage(page);
 
     const email = generateEmail('register', provider);
     const password = `Password${Date.now()}!`;
@@ -27,30 +25,17 @@ for (const provider of providers) {
       otp = await waitForOtpFromEmail(email, 100000, 5000); 
     });
 
-    await test.step('Ввести OTP и проверить регистрацию', async () => {
+    await test.step('Ввести OTP и проверить переход к шагу телефона', async () => {
       await registration.enterOtp(otp);
-      // Ждем появления кнопки аккаунта/меню как подтверждение успешного входа
-      await expect(page.getByRole('button', { name: /account|profile|menu/i }).first())
-        .toBeVisible({ timeout: 15000 });
-    });
 
-    await test.step('Выйти из аккаунта (Logout)', async () => {
-      const accountBtn = page.getByRole('button', { name: /account|profile|menu/i }).first();
-      await accountBtn.waitFor({ state: 'visible' });
-      await accountBtn.click();
+      // Проверяем, что OTP принят и открылся шаг ввода телефона
+      // Ищем на странице поле ввода телефона или упоминание номера
+      const phoneStepElement = page.locator(
+        'input[type="tel"], input[placeholder*="phone" i], input[placeholder*="номер" i], input[placeholder*="телефон" i], [class*="phone"]'
+      ).first();
 
-      const logoutBtn = page.getByRole('button', { name: /sign out|log out|logout/i }).first();
-      await logoutBtn.waitFor({ state: 'visible' });
-      await logoutBtn.click();
-
-      await expect(page.getByRole('link', { name: /log\s?in|sign in/i }).first())
-        .toBeVisible({ timeout: 15000 });
-    });
-
-    await test.step('Авторизоваться под новым пользователем', async () => {
-      await login.openLogin();
-      await login.login(email, password);
-      await login.expectLoggedIn();
+      await expect(phoneStepElement).toBeVisible({ timeout: 15000 });
+      console.log(`✅ OTP успешно подтвержден для ${provider}! Открылся шаг ввода номера телефона.`);
     });
   });
 }

@@ -7,20 +7,24 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
-  retries: process.env.CI ? 1 : 0,
+  // На CI даем 2 попытки для стабильности из-за возможных сетевых задержек почты
+  retries: process.env.CI ? 2 : 0, 
   
-  // Увеличили таймаут до 120с, чтобы дождаться писем
   timeout: 120000, 
-  reporter: [['html', { open: 'never' }]],
+  reporter: [
+    ['html', { open: 'never' }],
+    ['list'] // Добавлен для красивого и понятного логирования шагов в консоли
+  ],
   
   use: {
-    baseURL: 'https://islam.social',
+    // Позволяет динамически подменять URL для локального тестирования в Docker или GitLab
+    baseURL: process.env.BASE_URL || 'https://islam.social',
     ignoreHTTPSErrors: true,
-    headless: process.env.CI ? true : false,
+    headless: !!process.env.CI,
     viewport: { width: 1280, height: 720 },
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure', // Записывает трассировку только для упавших тестов (экономит память)
     locale: 'en-US', 
     launchOptions: {
       args: ['--disable-features=Translate']

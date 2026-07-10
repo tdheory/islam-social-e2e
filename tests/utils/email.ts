@@ -8,22 +8,23 @@ export type MailProvider = 'gmail' | 'yandex';
 
 function createClient(targetEmail: string) {
   const isYandex = targetEmail.toLowerCase().includes('yandex');
+  const user = isYandex ? process.env.YANDEX_USER : process.env.GMAIL_USER;
+  const pass = isYandex ? process.env.YANDEX_APP_PASSWORD : process.env.GMAIL_APP_PASSWORD;
+
+  // Защита от запуска с пустым конфигом
+  if (!user || !pass) {
+    throw new Error(`[IMAP CONFIG] Критическая ошибка: Не найдены доступы для ${isYandex ? 'Yandex' : 'Gmail'} в файле env.`);
+  }
 
   return new ImapFlow({
     host: isYandex ? 'imap.yandex.ru' : 'imap.gmail.com',
     port: 993,
     secure: true,
-    auth: {
-      user: isYandex ? process.env.YANDEX_USER! : process.env.GMAIL_USER!,
-      pass: isYandex ? process.env.YANDEX_APP_PASSWORD! : process.env.GMAIL_APP_PASSWORD!,
-    },
+    auth: { user, pass },
     logger: false,
   });
 }
 
-/**
- * Генерирует email в зависимости от переданного провайдера
- */
 export function generateEmail(tag: string, provider: MailProvider): string {
   const timestamp = Date.now();
 
@@ -46,7 +47,6 @@ export async function waitForOtpFromEmail(
 
   while (Date.now() - start < timeoutMs) {
     console.log(`[IMAP] Поиск OTP для адреса: ${targetEmail}...`);
-
     const client = createClient(targetEmail);
     
     try {
@@ -72,9 +72,11 @@ export async function waitForOtpFromEmail(
             if (toAddress.toLowerCase().includes(targetEmail.toLowerCase())) {
               console.log(`[IMAP] Найдено подходящее письмо (UID: ${uid}). Анализируем текст...`);
 
+              // Добавлена поддержка русской локализации "код:"
               const match =
                 text.match(/Confirmation code:\s*(\d{6})/i) ||
                 text.match(/code[:\s]*(\d{6})/i) ||
+                text.match(/код[:\s]*(\d{6})/i) || 
                 text.match(/Confirmation code[\s\S]{0,50}(\d{6})/i) ||
                 text.match(/(?<!\d)(\d{6})(?!\d)/);
 
@@ -89,7 +91,7 @@ export async function waitForOtpFromEmail(
         lock.release();
       }
     } catch (err) {
-      console.error('[IMAP ERROR]:', err);
+      console.error('[IMAP ITERATION ERROR]:', err);
     } finally {
       await client.logout().catch(() => {});
     }

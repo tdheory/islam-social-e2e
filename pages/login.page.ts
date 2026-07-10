@@ -11,21 +11,20 @@ export class LoginPage extends BasePage {
   }
 
   async login(email: string, password: string) {
+    console.log(`[>>] Авторизация пользователя: ${email}`);
     await this.page.getByRole('textbox', { name: /login|email/i }).first().fill(email);
     await this.page.getByRole('textbox', { name: /password/i }).first().fill(password);
     await this.page.getByRole('button', { name: /sign in|login/i }).first().click();
   }
 
   async expectLoggedIn() {
-    // 1. Убеждаемся, что система ушла со страницы логина/авторизации
     await expect(this.page).not.toHaveURL(/login|sign-in/i, { timeout: 15000 });
 
-    // 2. Ищем элемент, подтверждающий вход: аватарку, кнопку профиля, выпадающее меню или ссылки
     const userElement = this.page.locator(
       'header img, [data-testid*="user"], [class*="avatar"], button:has-text("Logout"), a[href*="profile"]'
     ).first();
 
-    // 3. Проверяем видимость (или хотя бы наличие в DOM, если элемент перекрыт интерфейсом)
     await expect(userElement).toBeAttached({ timeout: 15000 });
+    console.log('[✓] Авторизация прошла успешно');
   }
 }

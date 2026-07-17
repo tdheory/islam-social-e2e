@@ -45,16 +45,24 @@ jobs:
 
     - name: Run Playwright tests
       env:
-        GMAIL_USER: 'islam.social.qa@gmail.com'
-        GMAIL_APP_PASSWORD: 'iwfnzrkscdtkbqqp'
-        YANDEX_USER: 'vi9ong@yandex.com'
-        YANDEX_APP_PASSWORD: 'gtpwxhpfvxrrpnni'
+        # Передаем ваши секреты в переменные окружения для тестов
+        MAIL_PROVIDER: ${{ secrets.MAIL_PROVIDER }}
+        GMAIL_USER: ${{ secrets.GMAIL_USER }}
+        GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        YANDEX_USER: ${{ secrets.YANDEX_USER }}
+        YANDEX_APP_PASSWORD: ${{ secrets.YANDEX_APP_PASSWORD }}
+        GITHUB_OWNER: ${{ secrets.MY_GITHUB_OWNER }}
+        GITHUB_REPO: ${{ secrets.MY_GITHUB_REPO }}
+        GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
       run: |
-        if [ "${{ github.event.inputs.test_type }}" = "login" ]; then
+        # Определяем тип теста (если запуск по кнопке — берем инпут, если по push — ставим all)
+        TEST_TYPE="${{ github.event.inputs.test_type || 'all' }}"
+        
+        if [ "$TEST_TYPE" = "login" ]; then
           npx playwright test tests/login.spec.ts
-        elif [ "${{ github.event.inputs.test_type }}" = "registration" ]; then
+        elif [ "$TEST_TYPE" = "registration" ]; then
           npx playwright test tests/registration.spec.ts
-        elif [ "${{ github.event.inputs.test_type }}" = "smoke" ]; then
+        elif [ "$TEST_TYPE" = "smoke" ]; then
           npx playwright test tests/smoke.spec.ts
         else
           npx playwright test
